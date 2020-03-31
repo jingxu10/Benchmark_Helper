@@ -149,6 +149,9 @@ else
                         else
                             PRELOADL="$PRELOADL;$preload"
                         fi
+                        if [[ $preload == *"/libiomp5.so" ]]; then
+                            ln_t="ENVVAR:KMP_AFFINITY=granularity=fine,compact"
+                        fi
                     else
                         echo -e "\e[31mError:\e[0m [Line $(($ln+1))] \"PRELOAD:$preload\" doesn't exist." 
                         exit 1
@@ -319,25 +322,45 @@ if [[ $VERBOSE -ne 0 ]]; then
 else
     echo -e "\e[33mInfo:\e[0m Verbose mode: OFF"
 fi
-if [ ! -z "$IOMP" ]; then
-    echo -e "\e[33mInfo:\e[0m Using Intel(R) OpenMP Runtime Library: $IOMP"
-else
-    echo -e "\e[33mInfo:\e[0m Using default OpenMP Runtime Libraries."
-fi
 
-echo -e "\e[33mInfo:\e[0m The following environment variable(s) will be set for all tasks:"
-for item in ${ENVVARS[*]}
-do
-    echo "  $item"
-done
+if [ ${#PRELOADS[@]} -gt 0 ]; then
+    echo -e "\e[33mInfo:\e[0m The following dynamic libraries will be loaded to overwrite default ones for all tasks:"
+    for item in ${PRELOADS[*]}
+    do
+        echo "  $item"
+    done
+fi
+if [ ${#ENVVARS[@]} -gt 0 ]; then
+    echo -e "\e[33mInfo:\e[0m The following environment variable(s) will be set for all tasks:"
+    for item in ${ENVVARS[*]}
+    do
+        echo "  $item"
+    done
+fi
 echo -e "\e[33mInfo:\e[0m The following task(s) will be run:"
 for i in `seq 0 $((${#FOLDERS[@]}-1))`; do
-    echo -e "  \e[36mfolder:\e[0m ${FOLDERS[$i]}"
+    IFS=';' read -r -a preloadl <<< "${PRELOADLS[$i]}"
+    IFS=';' read -r -a envvarl <<< "${ENVVARLS[$i]}"
+    echo -e "  \e[36mFolder:\e[0m ${FOLDERS[$i]}"
     if [[ ${VENVS[$i]} != "none;" ]]; then
         echo -e "  \e[36mVenv:\e[0m ${VENVS[$i]}"
     fi
     echo -e "  \e[36mInstance(s):\e[0m ${INSTANCES[$i]}"
     echo -e "  \e[36mCommand:\e[0m ${CMDS[$i]}"
+    if [ ${#preloadl[@]} -gt 0 ]; then
+        echo -e "  \e[36mPreload dynamic libraries:\e[0m"
+        for item in ${preloadl[*]}
+        do
+            echo "    $item"
+        done
+    fi
+    if [ ${#envvarl[@]} -gt 0 ]; then
+        echo -e "  \e[36mEnvironment variables:\e[0m"
+        for item in ${envvarl[*]}
+        do
+            echo "    $item"
+        done
+    fi
     echo -e "  \e[36mCores:\e[0m ${CORE_SS[$i]}-${CORE_ES[$i]}"
     echo -e "  \e[36mLog:\e[0m ${LOGS[$i]}"
     echo "  ========================================="
@@ -433,7 +456,6 @@ for i in `seq 0 $((${#FOLDERS[@]}-1))`; do
     log=${folder}/${LOG_ROOT}/${LOGS[$i]}
 
     preload=""
-    IOMP=""
     for item in ${PRELOADS[*]}
     do
         if [ ! -z "$item" ]; then
@@ -441,9 +463,6 @@ for i in `seq 0 $((${#FOLDERS[@]}-1))`; do
                 preload=$item
             else
                 preload="$preload $item"
-            fi
-            if [[ $item == *"/libiomp5.so" ]]; then
-                IOMP=$item
             fi
         fi
     done
@@ -455,17 +474,13 @@ for i in `seq 0 $((${#FOLDERS[@]}-1))`; do
             else
                 preload="$preload $item"
             fi
-            if [[ $item == *"/libiomp5.so" ]]; then
-                IOMP=$item
-            fi
         fi
     done
 
     SCRIPT="tmp_$MARKER.sh"
     echo "#!/bin/bash" > $SCRIPT
-    echo "export LD_PRELOAD=\"$preload\"" >> $SCRIPT
-    if [ ! -z "$IOMP" ]; then
-        echo "export KMP_AFFINITY=granularity=fine,compact" >> $SCRIPT
+    if [ ! -z "$preload" ]; then
+        echo "export LD_PRELOAD=\"$preload\"" >> $SCRIPT
     fi
     for item in ${ENVVARS[*]}
     do
