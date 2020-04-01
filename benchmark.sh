@@ -35,6 +35,16 @@ if [[ $sockets == '' ]] || [[ $corepersocket == '' ]]; then
 fi
 ALLCORES=$(($sockets*$corepersocket))
 
+IFS='/' read -r -a tmp <<< "$0"
+if [ ${#tmp[@]} -gt 2 ] || ! [[ $0 == ./* ]]; then
+    name=$(echo $0 | rev | cut -d '/' -f 1 | rev)
+    folder=${0%"/$name"}
+    if [ -z $folder ]; then
+        folder="/"
+    fi
+    echo -e "\e[31mError:\e[0m Please enter $folder and then run ./$name."
+    exit 1
+fi
 CONFFILE="benchmark.conf"
 if [ $# -gt 0 ]; then
     CONFFILE=$1
@@ -47,6 +57,11 @@ if [ $# -gt 0 ]; then
         echo -e "\e[31mError:\e[0m $CONFFILE doesn't exist."
         exit 1
     fi
+fi
+IFS='/' read -r -a tmp2 <<< "$CONFFILE"
+if [ ${#tmp2[@]} -gt 1 ]; then
+    echo -e "\e[31mError:\e[0m Configure file has to be in the same folder of ${tmp[1]}."
+    exit 1
 fi
 
 echo -e "\e[33mInfo:\e[0m CPU info"
@@ -430,7 +445,7 @@ benchmark() {
         fi
         if [[ $VERBOSE -ne 0 ]]; then
             echo "$ cat $script" > $logfile
-            cat $script >> $logfile
+            cat "$script" >> $logfile
             echo "$ export OMP_NUM_THREADS=$omp_num_threads" >> $logfile
             echo "$ $cmd" >> $logfile
             echo "" >> $logfile
@@ -478,50 +493,50 @@ for i in `seq 0 $((${#FOLDERS[@]}-1))`; do
     done
 
     SCRIPT="tmp_$MARKER.sh"
-    echo "#!/bin/bash" > $SCRIPT
+    echo "#!/bin/bash" > "$SCRIPT"
     if [ ! -z "$preload" ]; then
-        echo "export LD_PRELOAD=\"$preload\"" >> $SCRIPT
+        echo "export LD_PRELOAD=\"$preload\"" >> "$SCRIPT"
     fi
     for item in ${ENVVARS[*]}
     do
         if [ ! -z "$item" ]; then
-            echo "export $item" >> $SCRIPT
+            echo "export $item" >> "$SCRIPT"
         fi
     done
     for item in ${envvarl[*]}
     do
         if [ ! -z "$item" ]; then
-            echo "export $item" >> $SCRIPT
+            echo "export $item" >> "$SCRIPT"
         fi
     done
     if [[ $channel == "conda" ]]; then
-        echo "source \$(conda info --base)/etc/profile.d/conda.sh" >> $SCRIPT
-        echo "conda activate \"$venv\"" >> $SCRIPT
+        echo "source \$(conda info --base)/etc/profile.d/conda.sh" >> "$SCRIPT"
+        echo "conda activate \"$venv\"" >> "$SCRIPT"
     fi
     if [[ $channel == "venv" ]]; then
-        echo "source \"$venv/bin/activate\"" >> $SCRIPT
+        echo "source \"$venv/bin/activate\"" >> "$SCRIPT"
     fi
     if [[ $channel == "bash" ]]; then
-        echo "source $venv" >> $SCRIPT
+        echo "source $venv" >> "$SCRIPT"
     fi
-    echo "cd $folder" >> $SCRIPT
-    echo "$command" >> $SCRIPT
+    echo "cd $folder" >> "$SCRIPT"
+    echo "$command" >> "$SCRIPT"
     if [[ $channel == "conda" ]]; then
-        echo "conda deactivate" >> $SCRIPT
+        echo "conda deactivate" >> "$SCRIPT"
     fi
     if [[ $channel == "venv" ]]; then
-        echo "deactivate" >> $SCRIPT
+        echo "deactivate" >> "$SCRIPT"
     fi
-    chmod +x $SCRIPT
+    chmod +x "$SCRIPT"
     
     echo -e "\e[33mInfo:\e[0m $folder"
     echo -e "\e[33mInfo:\e[0m $command"
     for n_proc in ${instances[*]}
     do
         if [ ! -z "$n_proc" ]; then
-            benchmark $n_proc $core_s $core_e $SCRIPT $log
+            benchmark $n_proc $core_s $core_e "$SCRIPT" $log
         fi
     done
-    rm $SCRIPT
+    rm "$SCRIPT"
 done
 echo "Finished"
