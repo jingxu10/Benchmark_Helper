@@ -89,15 +89,15 @@ if [ ! -f $CONFFILE ]; then
     echo "# Lines starting with sharp (#) will be skipped." >> $CONFFILE
     echo "" >> $CONFFILE
     echo "# Configure file Structure:" >> $CONFFILE
-    echo "# # [Global configuration]" >> $CONFFILE
+    echo "# # [Global configuration] Settings will be applied on all tasks" >> $CONFFILE
     echo "# PRELOAD:(Optional)" >> $CONFFILE
     echo "# ENVVAR:(Optional)" >> $CONFFILE
     echo "# VERBOSE:(Optional)" >> $CONFFILE
-    echo "# # [folder configuration]" >> $CONFFILE
+    echo "# # [folder configuration] Settings will be applied on all tasks under <FOLDER>" >> $CONFFILE
     echo "# FOLDER:(Mandatory)" >> $CONFFILE
     echo "# VENV:(Optional)" >> $CONFFILE
     echo "# INSTANCE:(Optional)" >> $CONFFILE
-    echo "# # [Task configuration]" >> $CONFFILE
+    echo "# # [Task configuration] Settings will be applied on individual task only" >> $CONFFILE
     echo "# CMD:(Mandatory)" >> $CONFFILE
     echo "# PRELOAD:(Optional)" >> $CONFFILE
     echo "# ENVVAR:(Optional)" >> $CONFFILE
@@ -105,23 +105,21 @@ if [ ! -f $CONFFILE ]; then
     echo "# LOG:(Mandatory)" >> $CONFFILE
     echo "" >> $CONFFILE
     echo "# PRELOAD: Path of dynamic libraries for LD_PRELOAD. Use absolute path. Can be multiple lines, each line for each dynamic library." >> $CONFFILE
-    echo "# ENVVAR: separate environment variables, if needed. This can be multiple lines." >> $CONFFILE
+    echo "# ENVVAR: Environment variables, if needed. This can be multiple lines, each line for each environment variable." >> $CONFFILE
     echo "# VERBOSE: Set to 1 to print detailed execution commands and environment variables to log files. Default is 0, disable printing." >> $CONFFILE
     echo "# FOLDER: Folder path which contains your python scripts or executable binaries. This can be absolute path or relative path." >> $CONFFILE
-    echo "# VENV: Python virtual environment or bash script to set runtime environment by \"source\" command. Can be absolute path or relative path for Python virtual environment, containing bin/activate script file. Alternatively, it can be name of conda virtual environment. If you don't use Python virtual environments or bash environment settings, you can comment this line out or leave this empty. For bash script usage, you can put parameters afterwards separate by space." >> $CONFFILE
-    echo "# INSTANCE: number of instances. Seperate by semicolon(;) for multiple number of instances." >> $CONFFILE
-    echo "# CMD: command how the python scrit or executable binary will be run, with full parameters, in folder <FOLDER>. Be sure to prepend \"./\" before your executable binaries, i.e. \"./<EXECUTABLE> <PARAMETERS>\" If you run Python script, just use \"python <SCRIPT> <PARAMETERS>\" This is begining of an individual task configuration." >> $CONFFILE
-    echo "# PRELOAD: Task-specific path of dynamic libraries for LD_PRELOAD. Use absolute path. Can be multiple lines, each line for each dynamic library." >> $CONFFILE
-    echo "# ENVVAR: Task-specific environment variables. This can be multiple lines." >> $CONFFILE
+    echo "# VENV: Python virtual environment or bash script to set runtime environment by \"source\" command. Can be absolute path or relative path for Python virtual environment, containing bin/activate script file. Alternatively, it can be name of conda virtual environment. If you don't use Python virtual environments or bash environment settings, you can comment this line out or leave this empty. For bash script usage, you can append parameters after the bash script filename, separate by space." >> $CONFFILE
+    echo "# INSTANCE: Number of instances to run on designated cores. For instance, 2 means tasks will be run with 2 independent instances on designated cores. Each instances takes half of overall cores. Seperate by semicolon(;) for multiple numbers of instances." >> $CONFFILE
+    echo "# CMD: Command how the python scrit or executable binary will be run, with full parameters. It must be exactly the same command when you run it in <FOLDER>. Be sure to prepend \"./\" before your executable binaries, i.e. \"./<EXECUTABLE> <PARAMETERS>\". If you run Python scripts, use \"python <SCRIPT> <PARAMETERS>\". CMD is begining of an individual task configuration." >> $CONFFILE
     echo "# CORES: Cores which you would like the task to run on. In format START;NUMBER. For instance, 0;12 means running on 12 physical cores starting from #0. Leave this empty or remove this line to take advantage of all physical cores on all sockets." >> $CONFFILE
-    echo "# LOG: name of log folder. Stdout of your application output will be redirected into files in <FOLDER>/LOGS/<LOG> folder. Log files are named as \"<INSTANCE_NUMBER>_<INSTANCE_ID>.log\". You can set CMD and LOG for multiple times for different tests. This is end of an individual task configuration." >> $CONFFILE
+    echo "# LOG: Name of log folder. Stdout of your application output will be redirected into files in <FOLDER>/LOGS/<LOG> folder. Log files are named as \"<INSTANCE_NUMBER>_<INSTANCE_ID>.log\". You can set CMD and LOG for multiple times for different tests in the same <FOLDER>. This is end of an individual task configuration." >> $CONFFILE
     echo "" >> $CONFFILE
     echo "# Example:" >> $CONFFILE
     echo "# [Global configuration]" >> $CONFFILE
     echo "# PRELOAD:/opt/intel/compilers_and_libraries_2019.2.187/linux/compiler/lib/intel64_lin/libiomp5.so" >> $CONFFILE
     echo "# ENVVAR: MKL_VERBOSE=1" >> $CONFFILE
     echo "# ENVVAR: MKLDNN_VERBOSE=1" >> $CONFFILE
-    echo "# [folder configuration]" >> $CONFFILE
+    echo "# [Folder configuration]" >> $CONFFILE
     echo "# FOLDER:../<path>/<folder1> or /home/user/<path>/<folder1>" >> $CONFFILE
     echo "# VENV:../<path>/<venv> or /home/user/<path>/<venv> or <venv>" >> $CONFFILE
     echo "# INSTANCE:1;2;12" >> $CONFFILE
@@ -195,7 +193,7 @@ else
             if [[ $ln_t == "FOLDER:"* ]]; then
                 FOLDER=$(echo ${ln_t:7} | xargs)
                 if [ ! -d "$FOLDER" ]; then
-                    echo -e "\e[35mWarning:\e[0m [Line $(($ln+1))] folder doesn't exist."
+                    echo -e "\e[35mWarning:\e[0m [Line $(($ln+1))] folder $FOLDER doesn't exist."
                     exit 1
                 fi
                 VENV="none;"
@@ -282,7 +280,7 @@ else
                 for item in ${tmp[*]}
                 do
                     if [ $item -gt $CORE_N ]; then
-                        echo -e "\e[31mError:\e[0m Instances configuration exceeds Cores configuration."
+                        echo -e "\e[31mError:\e[0m Instances configuration ($item) exceeds cores configuration ($CORE_N)."
                         exit 1
                     fi
                 done
