@@ -419,10 +419,14 @@ benchmark() {
     log=$5
     n_core=$(($core_e-$core_s+1))
     omp_num_threads=$(($n_core/$n_proc))
+    t=$(($n_proc/$sockets))
+    offset1=$((($n_core-$omp_num_threads*$n_proc)/$sockets))
     export OMP_NUM_THREADS=$omp_num_threads
+    export intra_op_parallelism_threads=$omp_num_threads
     for i in `seq 0 $(($n_proc-1))`; do
         echo -e "\e[33mInfo:\e[0m instance(s): $(($i+1))/$n_proc"
-        cpu_s=$(($i*$omp_num_threads+$core_s))
+        offset2=$(($i/$t))
+        cpu_s=$(($i*$omp_num_threads+$core_s+$offset1*$offset2))
         cpu_e=$(($cpu_s+$omp_num_threads-1))
         mem0=$(($cpu_s/$corepersocket))
         mem1=$(($cpu_e/$corepersocket))
@@ -445,6 +449,7 @@ benchmark() {
             echo "$ cat $script" > $logfile
             cat "$script" >> $logfile
             echo "$ export OMP_NUM_THREADS=$omp_num_threads" >> $logfile
+            echo "$ export intra_op_parallelism_threads=$omp_num_threads" >> $logfile
             echo "$ $cmd" >> $logfile
             echo "" >> $logfile
         fi
