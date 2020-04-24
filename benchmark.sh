@@ -419,14 +419,12 @@ benchmark() {
     log=$5
     n_core=$(($core_e-$core_s+1))
     omp_num_threads=$(($n_core/$n_proc))
-    t=$(($n_proc/$sockets))
-    offset1=$((($n_core-$omp_num_threads*$n_proc)/$sockets))
     export OMP_NUM_THREADS=$omp_num_threads
     export intra_op_parallelism_threads=$omp_num_threads
+    offset=0
     for i in `seq 0 $(($n_proc-1))`; do
         echo -e "\e[33mInfo:\e[0m instance(s): $(($i+1))/$n_proc"
-        offset2=$(($i/$t))
-        cpu_s=$(($i*$omp_num_threads+$core_s+$offset1*$offset2))
+        cpu_s=$(($i*$omp_num_threads+$core_s+offset))
         cpu_e=$(($cpu_s+$omp_num_threads-1))
         mem0=$(($cpu_s/$corepersocket))
         mem1=$(($cpu_e/$corepersocket))
@@ -434,7 +432,10 @@ benchmark() {
         if [ $mem0 -eq $mem1 ]; then
             mem_prefix="-m ${mem0}"
         else
-            echo -e "\e[35mWarning:\e[0m Running on multiple sockets!"
+            # echo -e "\e[35mWarning:\e[0m Running on multiple sockets!"
+            offset=$(($corepersocket-$cpu_s))
+            cpu_s=$(($cpu_s+$offset))
+            cpu_e=$(($cpu_e+$offset))
         fi
         numa_prefix=""
         if [ $NUMA -eq 1 ]; then
